@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>TeenConnect - Friends</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f5fb;
+        }
+
+        .header {
+            background: #5b5ce2;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .nav {
+            background: white;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+        }
+
+        .nav a,
+        .logout {
+            text-decoration: none;
+            color: #5b5ce2;
+            font-weight: bold;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            cursor: pointer;
+        }
+
+        .nav a:hover {
+            background: #eeeeff;
+        }
+
+        .logout {
+            background: #777;
+            color: white;
+        }
+
+        .badge {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 7px;
+            font-size: 12px;
+            margin-left: 3px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            color: #5b5ce2;
+            text-align: center;
+        }
+
+        .request,
+        .friend {
+            background: #eeeeff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .request-name,
+        .friend-name {
+            font-weight: bold;
+            font-size: 17px;
+        }
+
+        .buttons {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .accept,
+        .decline {
+            border: none;
+            padding: 9px 15px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .accept {
+            background: #2e9d50;
+            color: white;
+        }
+
+        .decline {
+            background: #d9534f;
+            color: white;
+        }
+
+        .empty {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+
+        .refresh {
+            display: block;
+            margin: 20px auto 0;
+            background: #5b5ce2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #777;
+        }
+
+        .friend:hover {
+            background: #e2e2ff;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1>TeenConnect</h1>
+
+    </div>
+
+
+    <!-- NAVIGATION -->
+
+    <div class="nav">
+
+        <a href="/index.html">
+            🏠 Home
+        </a>
+
+        <a href="/users.html">
+            👥 Users
+        </a>
+
+        <a href="/friends.html">
+            👥 Friends
+            <span id="friendBadge" class="badge"></span>
+        </a>
+
+        <a href="/chat.html">
+            💬 Chat
+        </a>
+
+        <a href="/notifications.html">
+            🔔 Notifications
+            <span id="notificationBadge" class="badge"></span>
+        </a>
+
+        <a href="/profile.html">
+            👤 Profile
+        </a>
+
+        <button
+            class="logout"
+            onclick="logout()"
+        >
+            🚪 Logout
+        </button>
+
+    </div>
+
+
+    <div class="container">
+
+
+        <!-- FRIEND REQUESTS -->
+
+        <div class="box">
+
+            <h2>
+                📩 Friend Requests
+            </h2>
+
+            <div
+                id="requestStatus"
+                class="status"
+            >
+                Loading requests...
+            </div>
+
+            <div id="requestsList"></div>
+
+            <button
+                class="refresh"
+                onclick="loadRequests()"
+            >
+                🔄 Refresh Requests
+            </button>
+
+        </div>
+
+
+        <!-- FRIENDS -->
+
+        <div class="box">
+
+            <h2>
+                👥 My Friends
+            </h2>
+
+            <div
+                id="friendsStatus"
+                class="status"
+            >
+                Loading friends...
+            </div>
+
+            <div id="friendsList"></div>
+
+        </div>
+
+    </div>
+
+
+<script>
+
+
+// ==========================================
+// LOGIN
+// ==========================================
+
+const username =
+    localStorage.getItem("username");
+
+if (!username) {
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+// ==========================================
+// SOCKET.IO
+// ==========================================
+
+const socket = io();
+
+socket.emit(
+    "register user",
+    username
+);
+
+
+// ==========================================
+// NOTIFICATION BADGE
+// ==========================================
+
+function updateNotificationBadge() {
+
+    const key =
+        "notifications_" + username;
+
+    const notifications =
+        JSON.parse(
+            localStorage.getItem(key)
+        ) || [];
+
+    const badge =
+        document.getElementById(
+            "notificationBadge"
+        );
+
+    if (notifications.length > 0) {
+
+        badge.textContent =
+            notifications.length;
+
+    } else {
+
+        badge.textContent = "";
+
+    }
+
+}
+
+
+// ==========================================
+// FRIEND REQUEST BADGE
+// ==========================================
+
+async function updateFriendBadge() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(username)
+            );
+
+        const requests =
+            await response.json();
+
+        const badge =
+            document.getElementById(
+                "friendBadge"
+            );
+
+        if (requests.length > 0) {
+
+            badge.textContent =
+                requests.length;
+
+        } else {
+
+            badge.textContent = "";
+
+        }
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+}
+
+
+// ==========================================
+// LOAD REQUESTS
+// ==========================================
+
+async function loadRequests() {
+
+    const list =
+        document.getElementById(
+            "requestsList"
+        );
+
+    const status =
+        document.getElementById(
+            "requestStatus"
+        );
+
+    status.textContent =
+        "Loading requests...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(username)
+            );
+
+        const requests =
+            await response.json();
+
+        list.innerHTML = "";
+
+        if (requests.length === 0) {
+
+            status.textContent =
+                "No pending friend requests.";
+
+            updateFriendBadge();
+
+            return;
+
+        }
+
+        status.textContent =
+            requests.length +
+            " pending request(s)";
+
+        requests.forEach(
+            function(request) {
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+                div.className =
+                    "request";
+
+                div.innerHTML = `
+
+                    <div class="request-name">
+
+                        👤 ${escapeHtml(request.sender)}
+
+                    </div>
+
+                    <div class="buttons">
+
+                        <button
+                            class="accept"
+                            onclick="acceptRequest(${request.id})"
+                        >
+                            ✅ Accept
+                        </button>
+
+                        <button
+                            class="decline"
+                            onclick="declineRequest(${request.id})"
+                        >
+                            ❌ Decline
+                        </button>
+
+                    </div>
+
+                `;
+
+                list.appendChild(div);
+
+            }
+        );
+
+        updateFriendBadge();
+
+    } catch (error) {
+
+        status.textContent =
+            "Could not load friend requests.";
+
+    }
+
+}
+
+
+// ==========================================
+// ACCEPT REQUEST
+// ==========================================
+
+async function acceptRequest(id) {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-request/accept",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            id: id,
+
+                            username: username
+
+                        })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(data.message);
+
+            return;
+
+        }
+
+        loadRequests();
+
+        loadFriends();
+
+        updateFriendBadge();
+
+        updateNotificationBadge();
+
+    } catch (error) {
+
+        alert(
+            "Could not accept request."
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// DECLINE REQUEST
+// ==========================================
+
+async function declineRequest(id) {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-request/decline",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            id: id,
+
+                            username: username
+
+                        })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(data.message);
+
+            return;
+
+        }
+
+        loadRequests();
+
+        updateFriendBadge();
+
+    } catch (error) {
+
+        alert(
+            "Could not decline request."
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// LOAD FRIENDS
+// ==========================================
+
+async function loadFriends() {
+
+    const list =
+        document.getElementById(
+            "friendsList"
+        );
+
+    const status =
+        document.getElementById(
+            "friendsStatus"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friends?username=" +
+                encodeURIComponent(username)
+            );
+
+        const friends =
+            await response.json();
+
+        list.innerHTML = "";
+
+        if (friends.length === 0) {
+
+            status.textContent =
+                "You don't have any friends yet.";
+
+            return;
+
+        }
+
+        status.textContent =
+            friends.length +
+            " friend(s)";
+
+        friends.forEach(
+            function(friend) {
+
+                // IMPORTANT:
+                // Your API returns:
+                // { "friend": "harry" }
+
+                const friendUsername =
+                    friend.friend;
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+                div.className =
+                    "friend";
+
+                div.innerHTML = `
+
+                    <div class="friend-name">
+
+                        👤 ${escapeHtml(friendUsername)}
+
+                    </div>
+
+                `;
+
+                div.style.cursor =
+                    "pointer";
+
+                div.onclick =
+                    function() {
+
+                        window.location.href =
+                            "/user-profile.html?username=" +
+                            encodeURIComponent(
+                                friendUsername
+                            );
+
+                    };
+
+                list.appendChild(div);
+
+            }
+        );
+
+    } catch (error) {
+
+        status.textContent =
+            "Could not load friends.";
+
+    }
+
+}
+
+
+// ==========================================
+// SAFE HTML
+// ==========================================
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        text;
+
+    return div.innerHTML;
+
+}
+
+
+// ==========================================
+// REAL-TIME FRIEND REQUEST
+// ==========================================
+
+socket.on(
+    "friend request",
+    function(data) {
+
+        loadRequests();
+
+        updateFriendBadge();
+
+        updateNotificationBadge();
+
+        alert(
+            "👥 " + data.message
+        );
+
+    }
+);
+
+
+// ==========================================
+// FRIEND REQUEST ACCEPTED
+// ==========================================
+
+socket.on(
+    "friend request accepted",
+    function(data) {
+
+        loadFriends();
+
+        updateNotificationBadge();
+
+        alert(
+            "✅ " + data.message
+        );
+
+    }
+);
+
+
+// ==========================================
+// NEW PRIVATE MESSAGE
+// ==========================================
+
+socket.on(
+    "new private message",
+    function(data) {
+
+        updateNotificationBadge();
+
+    }
+);
+
+
+// ==========================================
+// LOGOUT
+// ==========================================
+
+function logout() {
+
+    localStorage.removeItem(
+        "username"
+    );
+
+    localStorage.removeItem(
+        "aboutMe"
+    );
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+// ==========================================
+// START
+// ==========================================
+
+loadRequests();
+
+loadFriends();
+
+updateFriendBadge();
+
+updateNotificationBadge();
+
+</script>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/notifications.js"></script>
+
+</html>

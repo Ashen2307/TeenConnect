@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TeenConnect - User Profile</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f0ff;
+        }
+
+        header {
+            background: linear-gradient(135deg, #6c4ab6, #8b68d1);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        nav {
+            background: white;
+            padding: 13px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #5b3aa4;
+            margin: 0 9px;
+            font-weight: bold;
+        }
+
+        .badge {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 7px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 3px;
+        }
+
+        .profile-card {
+            max-width: 700px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+            overflow: hidden;
+        }
+
+        .cover {
+            height: 150px;
+            background: linear-gradient(
+                135deg,
+                #6c4ab6,
+                #9b7be0
+            );
+        }
+
+        .profile-content {
+            padding: 0 30px 30px;
+            text-align: center;
+        }
+
+        .avatar-container {
+            margin-top: -65px;
+        }
+
+        #avatar {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 6px solid white;
+            background: #ddd;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+        }
+
+        .username {
+            font-size: 27px;
+            font-weight: bold;
+            color: #4d348c;
+            margin-top: 15px;
+        }
+
+        .status {
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .online {
+            color: #16843a;
+        }
+
+        .offline {
+            color: #777;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 45px;
+            margin: 25px 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 22px;
+            font-weight: bold;
+            color: #5b3aa4;
+        }
+
+        .stat-label {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .section {
+            text-align: left;
+            margin-top: 25px;
+        }
+
+        .section h3 {
+            color: #5b3aa4;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        .about-box {
+            background: #f7f4ff;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 80px;
+            color: #444;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .buttons {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        button {
+            background: #6c4ab6;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #563596;
+        }
+
+        .friend-button {
+            background: #4d9f68;
+        }
+
+        .friend-button:hover {
+            background: #387a4d;
+        }
+
+        .decline-button {
+            background: #c94c4c;
+        }
+
+        .decline-button:hover {
+            background: #a63737;
+        }
+
+        .back-button {
+            background: #777;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        #loading {
+            text-align: center;
+            color: #777;
+            padding: 30px;
+        }
+
+        @media (max-width: 600px) {
+
+            nav a {
+                display: inline-block;
+                margin: 6px;
+            }
+
+            .profile-card {
+                margin: 25px 10px;
+            }
+
+            .profile-content {
+                padding: 0 20px 25px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>👤 TeenConnect Profile</h1>
+
+</header>
+
+
+<nav>
+
+    <a href="/index.html">
+        🏠 Home
+    </a>
+
+    <a href="/users.html">
+        👥 Users
+    </a>
+
+    <a href="/friends.html">
+        👥 Friends
+        <span
+            id="friendBadge"
+            class="badge"
+            style="display:none;"
+        ></span>
+    </a>
+
+    <a href="/chat.html">
+        💬 Chat
+    </a>
+
+    <a href="/notifications.html">
+        🔔 Notifications
+        <span
+            id="notificationBadge"
+            class="badge"
+            style="display:none;"
+        ></span>
+    </a>
+
+    <a href="/profile.html">
+        👤 Profile
+    </a>
+
+    <a href="#" onclick="logout()">
+        🚪 Logout
+    </a>
+
+</nav>
+
+
+<div class="profile-card">
+
+    <div class="cover"></div>
+
+    <div
+        id="loading"
+    >
+        Loading profile...
+    </div>
+
+
+    <div
+        class="profile-content"
+        id="profileContent"
+        style="display:none;"
+    >
+
+        <!-- PROFILE PICTURE -->
+
+        <div class="avatar-container">
+
+            <img
+                id="avatar"
+                src=""
+                alt="Profile picture"
+            >
+
+        </div>
+
+
+        <!-- USERNAME -->
+
+        <div
+            class="username"
+            id="username"
+        >
+        </div>
+
+
+        <!-- ONLINE STATUS -->
+
+        <div
+            class="status offline"
+            id="status"
+        >
+            ⚪ Offline
+        </div>
+
+
+        <!-- FRIEND COUNT -->
+
+        <div class="stats">
+
+            <div class="stat">
+
+                <div
+                    class="stat-number"
+                    id="friendCount"
+                >
+                    0
+                </div>
+
+                <div class="stat-label">
+                    Friends
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ABOUT ME -->
+
+        <div class="section">
+
+            <h3>
+                📝 About Me
+            </h3>
+
+            <div
+                class="about-box"
+                id="aboutMe"
+            >
+                No information yet.
+            </div>
+
+        </div>
+
+
+        <!-- BUTTONS -->
+
+        <div class="buttons">
+
+            <button
+                id="messageButton"
+                onclick="startMessage()"
+            >
+                💬 Message
+            </button>
+
+            <button
+                id="friendButton"
+                class="friend-button"
+                onclick="friendAction()"
+            >
+                ➕ Add Friend
+            </button>
+
+            <button
+                class="back-button"
+                onclick="goBack()"
+            >
+                ← Back
+            </button>
+
+        </div>
+
+
+        <div id="message"></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* =========================================
+   CURRENT USER
+========================================= */
+
+const currentUser =
+    localStorage.getItem("username");
+
+
+/* =========================================
+   TARGET USER
+========================================= */
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+
+const profileUsername =
+    params.get("username");
+
+
+/* =========================================
+   LOGIN CHECK
+========================================= */
+
+if (!currentUser) {
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+/* =========================================
+   CHECK TARGET
+========================================= */
+
+if (!profileUsername) {
+
+    alert(
+        "No user selected."
+    );
+
+    window.location.href =
+        "/users.html";
+
+}
+
+
+/* =========================================
+   DEFAULT AVATAR
+========================================= */
+
+const defaultAvatar =
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(`
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="130"
+            height="130"
+        >
+
+            <rect
+                width="100%"
+                height="100%"
+                fill="#ddd"
+            />
+
+            <text
+                x="50%"
+                y="55%"
+                text-anchor="middle"
+                font-size="65"
+            >
+                👤
+            </text>
+
+        </svg>
+    `);
+
+
+/* =========================================
+   SOCKET.IO
+========================================= */
+
+const socket = io();
+
+socket.emit(
+    "register user",
+    currentUser
+);
+
+
+/* =========================================
+   ONLINE USERS
+========================================= */
+
+socket.on(
+    "online users",
+    function(users) {
+
+        updateOnlineStatus(
+            users
+        );
+
+    }
+);
+
+
+/* =========================================
+   LOAD PROFILE
+========================================= */
+
+async function loadProfile() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/profile/" +
+                encodeURIComponent(
+                    profileUsername
+                )
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !data.success
+        ) {
+
+            throw new Error(
+                data.message ||
+                "Profile not found."
+            );
+
+        }
+
+
+        /* USERNAME */
+
+        document.getElementById(
+            "username"
+        ).textContent =
+            data.username;
+
+
+        /* AVATAR */
+
+        document.getElementById(
+            "avatar"
+        ).src =
+            data.avatar ||
+            defaultAvatar;
+
+
+        /* ABOUT ME */
+
+        const about =
+            document.getElementById(
+                "aboutMe"
+            );
+
+
+        if (data.aboutMe &&
+            data.aboutMe.trim() !== "") {
+
+            about.textContent =
+                data.aboutMe;
+
+        } else {
+
+            about.textContent =
+                "No information yet.";
+
+        }
+
+
+        /* SHOW PROFILE */
+
+        document.getElementById(
+            "loading"
+        ).style.display =
+            "none";
+
+
+        document.getElementById(
+            "profileContent"
+        ).style.display =
+            "block";
+
+
+        /* FRIEND COUNT */
+
+        loadFriendCount();
+
+
+        /* FRIEND STATUS */
+
+        checkFriendStatus();
+
+
+    } catch (error) {
+
+        console.error(
+            "Profile error:",
+            error
+        );
+
+
+        document.getElementById(
+            "loading"
+        ).textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+/* =========================================
+   ONLINE STATUS
+========================================= */
+
+function updateOnlineStatus(
+    users
+) {
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+
+    if (
+        Array.isArray(users) &&
+        users.includes(
+            profileUsername
+        )
+    ) {
+
+        status.textContent =
+            "🟢 Online";
+
+        status.className =
+            "status online";
+
+    } else {
+
+        status.textContent =
+            "⚪ Offline";
+
+        status.className =
+            "status offline";
+
+    }
+
+}
+
+
+/* =========================================
+   FRIEND COUNT
+========================================= */
+
+async function loadFriendCount() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friends?username=" +
+                encodeURIComponent(
+                    profileUsername
+                )
+            );
+
+
+        const friends =
+            await response.json();
+
+
+        document.getElementById(
+            "friendCount"
+        ).textContent =
+            Array.isArray(friends)
+                ? friends.length
+                : 0;
+
+
+    } catch (error) {
+
+        console.error(
+            "Friend count error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   FRIEND STATUS
+========================================= */
+
+async function checkFriendStatus() {
+
+    const button =
+        document.getElementById(
+            "friendButton"
+        );
+
+
+    /* OWN PROFILE */
+
+    if (
+        currentUser ===
+        profileUsername
+    ) {
+
+        button.style.display =
+            "none";
+
+        return;
+
+    }
+
+
+    try {
+
+        /* GET CURRENT USER FRIENDS */
+
+        const friendsResponse =
+            await fetch(
+                "/api/friends?username=" +
+                encodeURIComponent(
+                    currentUser
+                )
+            );
+
+
+        const friends =
+            await friendsResponse.json();
+
+
+        const isFriend =
+            Array.isArray(friends) &&
+            friends.some(
+                friend =>
+                    friend.friend ===
+                    profileUsername
+            );
+
+
+        if (isFriend) {
+
+            button.textContent =
+                "✅ Friends";
+
+            button.disabled =
+                true;
+
+            button.style.background =
+                "#777";
+
+            return;
+
+        }
+
+
+        /* CHECK REQUESTS */
+
+        const requestsResponse =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(
+                    currentUser
+                )
+            );
+
+
+        const requests =
+            await requestsResponse.json();
+
+
+        const incomingRequest =
+            Array.isArray(requests) &&
+            requests.find(
+                request =>
+                    request.sender ===
+                    profileUsername
+            );
+
+
+        if (incomingRequest) {
+
+            button.textContent =
+                "📩 Accept Friend Request";
+
+            button.disabled =
+                false;
+
+            button.className =
+                "friend-button";
+
+            button.dataset.requestId =
+                incomingRequest.id;
+
+            return;
+
+        }
+
+
+        /* CHECK IF WE SENT REQUEST */
+
+        const targetRequestsResponse =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(
+                    profileUsername
+                )
+            );
+
+
+        const targetRequests =
+            await targetRequestsResponse.json();
+
+
+        const outgoingRequest =
+            Array.isArray(targetRequests) &&
+            targetRequests.find(
+                request =>
+                    request.sender ===
+                    currentUser &&
+                    request.receiver ===
+                    profileUsername
+            );
+
+
+        if (outgoingRequest) {
+
+            button.textContent =
+                "⏳ Request Sent";
+
+            button.disabled =
+                true;
+
+            button.style.background =
+                "#777";
+
+            return;
+
+        }
+
+
+        /* DEFAULT */
+
+        button.textContent =
+            "➕ Add Friend";
+
+        button.disabled =
+            false;
+
+    } catch (error) {
+
+        console.error(
+            "Friend status error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   FRIEND ACTION
+========================================= */
+
+async function friendAction() {
+
+    const button =
+        document.getElementById(
+            "friendButton"
+        );
+
+
+    /* ACCEPT REQUEST */
+
+    if (
+        button.textContent.includes(
+            "Accept Friend Request"
+        )
+    ) {
+
+        const requestId =
+            button.dataset.requestId;
+
+
+        if (!requestId) {
+
+            alert(
+                "Friend request not found."
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/friend-request/accept",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+                                id:
+                                    Number(
+                                        requestId
+                                    )
+                            })
+                    }
+                );
+
+
+            const result =
+                await response.json();
+
+
+            if (!result.success) {
+
+                alert(
+                    result.message ||
+                    "Could not accept request."
+                );
+
+                return;
+
+            }
+
+
+            button.textContent =
+                "✅ Friends";
+
+            button.disabled =
+                true;
+
+            button.style.background =
+                "#777";
+
+
+            loadFriendCount();
+
+            updateFriendBadge();
+
+
+        } catch (error) {
+
+            console.error(
+                "Accept request error:",
+                error
+            );
+
+            alert(
+                "Could not accept friend request."
+            );
+
+        }
+
+        return;
+
+    }
+
+
+    /* SEND FRIEND REQUEST */
+
+    try {
+
+        button.disabled =
+            true;
+
+        button.textContent =
+            "⏳ Sending...";
+
+
+        const response =
+            await fetch(
+                "/api/friend-request",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            sender:
+                                currentUser,
+
+                            receiver:
+                                profileUsername
+
+                        })
+
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!result.success) {
+
+            alert(
+                result.message ||
+                "Could not send friend request."
+            );
+
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "➕ Add Friend";
+
+            return;
+
+        }
+
+
+        button.textContent =
+            "⏳ Request Sent";
+
+        button.disabled =
+            true;
+
+        button.style.background =
+            "#777";
+
+
+    } catch (error) {
+
+        console.error(
+            "Friend request error:",
+            error
+        );
+
+
+        alert(
+            "Could not send friend request."
+        );
+
+
+        button.disabled =
+            false;
+
+        button.textContent =
+            "➕ Add Friend";
+
+    }
+
+}
+
+
+/* =========================================
+   MESSAGE
+========================================= */
+
+function startMessage() {
+
+    window.location.href =
+        "/private-chat.html?username=" +
+        encodeURIComponent(
+            profileUsername
+        );
+
+}
+
+
+/* =========================================
+   FRIEND BADGE
+========================================= */
+
+async function updateFriendBadge() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(
+                    currentUser
+                )
+            );
+
+
+        const requests =
+            await response.json();
+
+
+        const badge =
+            document.getElementById(
+                "friendBadge"
+            );
+
+
+        if (
+            Array.isArray(requests) &&
+            requests.length > 0
+        ) {
+
+            badge.textContent =
+                requests.length;
+
+            badge.style.display =
+                "inline-block";
+
+        } else {
+
+            badge.style.display =
+                "none";
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Friend badge error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   NOTIFICATIONS
+========================================= */
+
+function getNotifications() {
+
+    const key =
+        "notifications_" +
+        currentUser;
+
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(key)
+        ) || [];
+
+    } catch (error) {
+
+        return [];
+
+    }
+
+}
+
+
+function saveNotifications(
+    notifications
+) {
+
+    const key =
+        "notifications_" +
+        currentUser;
+
+
+    localStorage.setItem(
+        key,
+        JSON.stringify(
+            notifications
+        )
+    );
+
+}
+
+
+function updateNotificationBadge() {
+
+    const notifications =
+        getNotifications();
+
+
+    const unread =
+        notifications.filter(
+            notification =>
+                notification.read !== true
+        ).length;
+
+
+    const badge =
+        document.getElementById(
+            "notificationBadge"
+        );
+
+
+    if (unread > 0) {
+
+        badge.textContent =
+            unread;
+
+        badge.style.display =
+            "inline-block";
+
+    } else {
+
+        badge.style.display =
+            "none";
+
+    }
+
+}
+
+
+function saveNotification(
+    message,
+    link
+) {
+
+    const notifications =
+        getNotifications();
+
+
+    notifications.unshift({
+
+        message:
+            message,
+
+        link:
+            link,
+
+        time:
+            new Date().toLocaleString(),
+
+        read:
+            false
+
+    });
+
+
+    saveNotifications(
+        notifications
+    );
+
+
+    updateNotificationBadge();
+
+}
+
+
+/* =========================================
+   REAL-TIME FRIEND REQUEST
+========================================= */
+
+socket.on(
+    "friend request",
+    function(data) {
+
+        if (
+            data.receiver ===
+            currentUser
+        ) {
+
+            saveNotification(
+                "👥 " +
+                data.message,
+                "/friends.html"
+            );
+
+
+            updateFriendBadge();
+
+
+            alert(
+                "👥 New friend request from " +
+                data.sender
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   FRIEND REQUEST ACCEPTED
+========================================= */
+
+socket.on(
+    "friend request accepted",
+    function(data) {
+
+        if (
+            data.receiver ===
+            currentUser
+        ) {
+
+            saveNotification(
+                "✅ " +
+                data.message,
+                "/friends.html"
+            );
+
+
+            updateFriendBadge();
+
+            loadFriendCount();
+
+
+            alert(
+                "✅ " +
+                data.message
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   NEW PRIVATE MESSAGE
+========================================= */
+
+socket.on(
+    "new private message",
+    function(data) {
+
+        const sender =
+            data.from ||
+            data.sender;
+
+
+        if (!sender) {
+            return;
+        }
+
+
+        if (
+            sender ===
+            profileUsername
+        ) {
+
+            saveNotification(
+
+                "💬 " +
+                sender +
+                " sent you a new message!",
+
+                "/private-chat.html?username=" +
+                encodeURIComponent(
+                    sender
+                )
+
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   BACK
+========================================= */
+
+function goBack() {
+
+    window.location.href =
+        "/users.html";
+
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+function logout() {
+
+    localStorage.removeItem(
+        "username"
+    );
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+/* =========================================
+   START
+========================================= */
+
+loadProfile();
+
+updateFriendBadge();
+
+updateNotificationBadge();
+
+</script>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/notifications.js"></script>
+</html>

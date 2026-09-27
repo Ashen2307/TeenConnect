@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Private Chat - TeenConnect</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+        }
+
+        nav {
+            background: #222;
+            padding: 15px;
+            text-align: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 8px;
+            font-weight: bold;
+        }
+
+        #friendBadge,
+        #messageBadge,
+        #notificationBadge {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 7px;
+            font-size: 12px;
+            display: none;
+        }
+
+        #notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1877f2;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+            display: none;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        #notification:hover {
+            background: #0d65d9;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #status {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            background: #fafafa;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .my-message {
+            margin-left: auto;
+            background: #d7f7d7;
+            text-align: right;
+        }
+
+        .their-message {
+            margin-right: auto;
+            background: #e5e5e5;
+        }
+
+        .sender {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .time {
+            font-size: 11px;
+            color: #777;
+            margin-top: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            background: #1877f2;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #0d65d9;
+        }
+
+        #error {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .back {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+
+<!-- NEW MESSAGE POPUP -->
+
+<div
+    id="notification"
+    onclick="openNotificationChat()"
+>
+
+    💬
+
+    <span id="notificationText">
+        New message!
+    </span>
+
+</div>
+
+
+<!-- NAVIGATION -->
+
+<nav>
+
+    <a href="/index.html">
+        🏠 Home
+    </a>
+
+    <a href="/users.html">
+        👥 Users
+    </a>
+
+    <a href="/friends.html">
+
+        👥 Friends
+
+        <span id="friendBadge">
+            0
+        </span>
+
+    </a>
+
+    <a href="/chat.html">
+
+        💬 Chat
+
+        <span id="messageBadge">
+            0
+        </span>
+
+    </a>
+
+    <a href="/notifications.html">
+
+        🔔 Notifications
+
+        <span id="notificationBadge">
+            0
+        </span>
+
+    </a>
+
+    <a href="/profile.html">
+        👤 Profile
+    </a>
+
+    <a href="#" onclick="logout()">
+        🚪 Logout
+    </a>
+
+</nav>
+
+
+<!-- PRIVATE CHAT -->
+
+<div class="container">
+
+    <h1>
+
+        💬 Chat with
+
+        <span id="recipient">
+            Loading...
+        </span>
+
+    </h1>
+
+
+    <div id="status">
+        🔄 Connecting...
+    </div>
+
+
+    <div id="messages"></div>
+
+
+    <div class="input-area">
+
+        <input
+            type="text"
+            id="messageInput"
+            placeholder="Type a message..."
+            autocomplete="off"
+        >
+
+        <button onclick="sendMessage()">
+            Send
+        </button>
+
+    </div>
+
+
+    <div id="error"></div>
+
+
+    <a
+        class="back"
+        href="/users.html"
+    >
+
+        ← Back to Users
+
+    </a>
+
+</div>
+
+
+<script>
+
+
+// =========================
+// LOGIN
+// =========================
+
+const currentUser =
+    localStorage.getItem("username");
+
+
+if (!currentUser) {
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+// =========================
+// RECIPIENT
+// =========================
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+
+const recipient =
+    params.get("username");
+
+
+if (!recipient) {
+
+    window.location.href =
+        "/users.html";
+
+}
+
+
+document.getElementById(
+    "recipient"
+).textContent = recipient;
+
+
+// =========================
+// SOCKET
+// =========================
+
+const socket = io();
+
+
+// =========================
+// NOTIFICATION SYSTEM
+// =========================
+
+const notificationBadge =
+    document.getElementById(
+        "notificationBadge"
+    );
+
+
+const notificationKey =
+    "notifications_" +
+    currentUser;
+
+
+function getNotifications() {
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(
+                notificationKey
+            )
+        ) || [];
+
+    } catch (error) {
+
+        return [];
+
+    }
+
+}
+
+
+function saveNotifications(
+    notifications
+) {
+
+    localStorage.setItem(
+        notificationKey,
+        JSON.stringify(
+            notifications
+        )
+    );
+
+}
+
+
+function updateNotificationBadge() {
+
+    const notifications =
+        getNotifications();
+
+
+    const unreadCount =
+        notifications.filter(
+            notification =>
+                notification.read !== true
+        ).length;
+
+
+    if (unreadCount > 0) {
+
+        notificationBadge.textContent =
+            unreadCount;
+
+        notificationBadge.style.display =
+            "inline-block";
+
+    } else {
+
+        notificationBadge.style.display =
+            "none";
+
+    }
+
+}
+
+
+function saveNotification(
+    message,
+    link
+) {
+
+    const notifications =
+        getNotifications();
+
+
+    notifications.unshift({
+
+        message: message,
+
+        link: link,
+
+        time:
+            new Date().toLocaleString(),
+
+        read: false
+
+    });
+
+
+    saveNotifications(
+        notifications
+    );
+
+
+    updateNotificationBadge();
+
+}
+
+
+// Show existing unread count
+
+updateNotificationBadge();
+
+
+// =========================
+// MESSAGE NOTIFICATION
+// =========================
+
+let notificationSender = null;
+
+
+socket.on(
+    "new private message",
+    function(data) {
+
+        console.log(
+            "New private message:",
+            data
+        );
+
+
+        const sender =
+            data.from ||
+            data.sender;
+
+
+        if (!sender) {
+            return;
+        }
+
+
+        notificationSender =
+            sender;
+
+
+        // Save global notification
+
+        saveNotification(
+
+            "💬 " +
+            sender +
+            " sent you a new message!",
+
+            "/private-chat.html?username=" +
+            encodeURIComponent(
+                sender
+            )
+
+        );
+
+
+        // Show popup
+
+        const notification =
+            document.getElementById(
+                "notification"
+            );
+
+
+        const notificationText =
+            document.getElementById(
+                "notificationText"
+            );
+
+
+        notificationText.textContent =
+            sender +
+            " sent you a new message!";
+
+
+        notification.style.display =
+            "block";
+
+
+        // Existing Chat badge
+
+        if (
+            sender !== recipient
+        ) {
+
+            const badge =
+                document.getElementById(
+                    "messageBadge"
+                );
+
+
+            let count =
+                parseInt(
+                    badge.textContent
+                ) || 0;
+
+
+            count++;
+
+
+            badge.textContent =
+                count;
+
+
+            badge.style.display =
+                "inline-block";
+
+        }
+
+    }
+);
+
+
+// =========================
+// FRIEND REQUEST
+// =========================
+
+socket.on(
+    "friend request",
+    function(data) {
+
+        saveNotification(
+
+            "👥 " +
+            data.message,
+
+            "/friends.html"
+
+        );
+
+
+        alert(
+            data.message
+        );
+
+
+        loadFriendRequests();
+
+    }
+);
+
+
+// =========================
+// FRIEND REQUEST ACCEPTED
+// =========================
+
+socket.on(
+    "friend request accepted",
+    function(data) {
+
+        saveNotification(
+
+            "✅ " +
+            data.message,
+
+            "/friends.html"
+
+        );
+
+
+        alert(
+            data.message
+        );
+
+    }
+);
+
+
+// =========================
+// OPEN MESSAGE POPUP
+// =========================
+
+function openNotificationChat() {
+
+    if (!notificationSender) {
+        return;
+    }
+
+
+    window.location.href =
+        "/private-chat.html?username=" +
+        encodeURIComponent(
+            notificationSender
+        );
+
+}
+
+
+// =========================
+// LOAD MESSAGE HISTORY
+// =========================
+
+async function loadMessageHistory() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/private-messages?user1=" +
+                encodeURIComponent(
+                    currentUser
+                ) +
+                "&user2=" +
+                encodeURIComponent(
+                    recipient
+                )
+            );
+
+
+        const messages =
+            await response.json();
+
+
+        const messagesBox =
+            document.getElementById(
+                "messages"
+            );
+
+
+        messagesBox.innerHTML = "";
+
+
+        messages.forEach(
+            function(data) {
+
+                const mine =
+                    data.sender ===
+                    currentUser;
+
+
+                displayMessage(
+
+                    data.sender,
+
+                    data.message,
+
+                    mine,
+
+                    data.created_at
+
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Could not load message history:",
+            error
+        );
+
+    }
+
+}
+
+
+// =========================
+// SOCKET CONNECTED
+// =========================
+
+socket.on(
+    "connect",
+    function() {
+
+        console.log(
+            "Socket connected:",
+            socket.id
+        );
+
+
+        socket.emit(
+            "register user",
+            currentUser
+        );
+
+
+        console.log(
+            "Registered:",
+            currentUser
+        );
+
+
+        loadMessageHistory();
+
+    }
+);
+
+
+// =========================
+// ONLINE USERS
+// =========================
+
+socket.on(
+    "online users",
+    function(users) {
+
+        if (
+            users.includes(
+                recipient
+            )
+        ) {
+
+            document.getElementById(
+                "status"
+            ).textContent =
+                "🟢 " +
+                recipient +
+                " is online";
+
+        } else {
+
+            document.getElementById(
+                "status"
+            ).textContent =
+                "🟠 " +
+                recipient +
+                " is offline";
+
+        }
+
+    }
+);
+
+
+// =========================
+// SEND MESSAGE
+// =========================
+
+function sendMessage() {
+
+    const input =
+        document.getElementById(
+            "messageInput"
+        );
+
+
+    const message =
+        input.value.trim();
+
+
+    if (message === "") {
+        return;
+    }
+
+
+    socket.emit(
+        "private message",
+        {
+
+            from:
+                currentUser,
+
+            to:
+                recipient,
+
+            message:
+                message
+
+        }
+    );
+
+
+    input.value = "";
+
+    input.focus();
+
+}
+
+
+// =========================
+// MESSAGE SENT
+// =========================
+
+socket.on(
+    "private message sent",
+    function(data) {
+
+        if (
+            data.to === recipient
+        ) {
+
+            displayMessage(
+
+                data.from,
+
+                data.message,
+
+                true,
+
+                data.created_at
+
+            );
+
+        }
+
+    }
+);
+
+
+// =========================
+// RECEIVE MESSAGE
+// =========================
+
+socket.on(
+    "private message",
+    function(data) {
+
+        if (
+            data.from === recipient &&
+            data.to === currentUser
+        ) {
+
+            displayMessage(
+
+                data.from,
+
+                data.message,
+
+                false,
+
+                data.created_at
+
+            );
+
+        }
+
+    }
+);
+
+
+// =========================
+// DISPLAY MESSAGE
+// =========================
+
+function displayMessage(
+    sender,
+    message,
+    mine,
+    time
+) {
+
+    const messages =
+        document.getElementById(
+            "messages"
+        );
+
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.classList.add(
+        "message"
+    );
+
+
+    if (mine) {
+
+        div.classList.add(
+            "my-message"
+        );
+
+    } else {
+
+        div.classList.add(
+            "their-message"
+        );
+
+    }
+
+
+    const senderDiv =
+        document.createElement(
+            "div"
+        );
+
+
+    senderDiv.className =
+        "sender";
+
+
+    senderDiv.textContent =
+        sender;
+
+
+    const messageDiv =
+        document.createElement(
+            "div"
+        );
+
+
+    messageDiv.textContent =
+        message;
+
+
+    const timeDiv =
+        document.createElement(
+            "div"
+        );
+
+
+    timeDiv.className =
+        "time";
+
+
+    if (time) {
+
+        const date =
+            new Date(time);
+
+
+        if (
+            !isNaN(
+                date.getTime()
+            )
+        ) {
+
+            timeDiv.textContent =
+                date.toLocaleString();
+
+        }
+
+    }
+
+
+    div.appendChild(
+        senderDiv
+    );
+
+
+    div.appendChild(
+        messageDiv
+    );
+
+
+    div.appendChild(
+        timeDiv
+    );
+
+
+    messages.appendChild(
+        div
+    );
+
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+}
+
+
+// =========================
+// ERROR
+// =========================
+
+socket.on(
+    "private message error",
+    function(data) {
+
+        document.getElementById(
+            "error"
+        ).textContent =
+            "❌ " +
+            data.message;
+
+    }
+);
+
+
+// =========================
+// ENTER KEY
+// =========================
+
+document
+    .getElementById(
+        "messageInput"
+    )
+    .addEventListener(
+        "keydown",
+        function(event) {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                sendMessage();
+
+            }
+
+        }
+    );
+
+
+// =========================
+// FRIEND REQUESTS
+// =========================
+
+async function loadFriendRequests() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(
+                    currentUser
+                )
+            );
+
+
+        const requests =
+            await response.json();
+
+
+        const badge =
+            document.getElementById(
+                "friendBadge"
+            );
+
+
+        if (
+            requests.length > 0
+        ) {
+
+            badge.textContent =
+                requests.length;
+
+            badge.style.display =
+                "inline-block";
+
+        } else {
+
+            badge.style.display =
+                "none";
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+    }
+
+}
+
+
+loadFriendRequests();
+
+
+// =========================
+// LOGOUT
+// =========================
+
+function logout() {
+
+    localStorage.removeItem(
+        "username"
+    );
+
+
+    localStorage.removeItem(
+        "aboutMe"
+    );
+
+
+    window.location.href =
+        "/login.html";
+
+}
+
+</script>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/notifications.js"></script>
+</html>

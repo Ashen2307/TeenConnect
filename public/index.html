@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeenConnect - Home</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f0ff;
+        }
+
+        header {
+            background: #6c4ab6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        nav {
+            background: white;
+            padding: 12px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #5b3aa4;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+
+        .badge {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 7px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 3px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        button {
+            background: #6c4ab6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #563596;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>🌟 TeenConnect</h1>
+    <p>Welcome to TeenConnect!</p>
+</header>
+
+<nav>
+    <a href="/index.html">🏠 Home</a>
+    <a href="/users.html">👥 Users</a>
+
+    <a href="/friends.html">
+        👥 Friends
+        <span id="friendBadge" class="badge" style="display:none;"></span>
+    </a>
+
+    <a href="/chat.html">💬 Chat</a>
+
+    <a href="/notifications.html">
+        🔔 Notifications
+        <span id="notificationBadge" class="badge" style="display:none;"></span>
+    </a>
+
+    <a href="/profile.html">👤 Profile</a>
+
+    <a href="#" onclick="logout()">🚪 Logout</a>
+</nav>
+
+<div class="container">
+    <h2 id="welcomeMessage">Welcome!</h2>
+
+    <p>
+        Connect with your friends, send messages,
+        and enjoy TeenConnect.
+    </p>
+
+    <button onclick="window.location.href='/users.html'">
+        Find Users
+    </button>
+</div>
+
+<script>
+
+const currentUser = localStorage.getItem("username");
+
+if (!currentUser) {
+    window.location.href = "/login.html";
+}
+
+/* =========================
+   SOCKET.IO
+========================= */
+
+const socket = io();
+
+socket.emit("register user", currentUser);
+
+
+/* =========================
+   WELCOME MESSAGE
+========================= */
+
+document.getElementById("welcomeMessage").textContent =
+    "Welcome, " + currentUser + "!";
+
+
+/* =========================
+   FRIEND REQUEST BADGE
+========================= */
+
+async function updateFriendBadge() {
+
+    try {
+
+        const response = await fetch(
+            "/api/friend-requests?username=" +
+            encodeURIComponent(currentUser)
+        );
+
+        const requests = await response.json();
+
+        const badge = document.getElementById("friendBadge");
+
+        if (requests.length > 0) {
+            badge.textContent = requests.length;
+            badge.style.display = "inline-block";
+        } else {
+            badge.style.display = "none";
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Error loading friend requests:",
+            error
+        );
+
+    }
+}
+
+
+/* =========================
+   NOTIFICATION FUNCTIONS
+========================= */
+
+function getNotifications() {
+
+    const key = "notifications_" + currentUser;
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(key)
+        ) || [];
+
+    } catch (error) {
+
+        console.error(
+            "Error reading notifications:",
+            error
+        );
+
+        return [];
+    }
+}
+
+
+function saveNotifications(notifications) {
+
+    const key = "notifications_" + currentUser;
+
+    localStorage.setItem(
+        key,
+        JSON.stringify(notifications)
+    );
+}
+
+
+function updateNotificationBadge() {
+
+    const notifications = getNotifications();
+
+    const unreadCount =
+        notifications.filter(
+            notification =>
+                notification.read !== true
+        ).length;
+
+    const badge =
+        document.getElementById("notificationBadge");
+
+    if (unreadCount > 0) {
+
+        badge.textContent = unreadCount;
+        badge.style.display = "inline-block";
+
+    } else {
+
+        badge.style.display = "none";
+
+    }
+}
+
+
+function saveNotification(message, link) {
+
+    const notifications = getNotifications();
+
+    notifications.unshift({
+
+        message: message,
+
+        link: link,
+
+        time: new Date().toLocaleString(),
+
+        read: false
+
+    });
+
+    saveNotifications(notifications);
+
+    updateNotificationBadge();
+}
+
+
+/* =========================
+   REAL-TIME FRIEND REQUEST
+========================= */
+
+socket.on("friend request", function(data) {
+
+    console.log(
+        "New friend request:",
+        data
+    );
+
+    saveNotification(
+        "👥 " + data.message,
+        "/friends.html"
+    );
+
+    updateFriendBadge();
+
+    alert(
+        "👥 New friend request from " +
+        data.sender
+    );
+
+});
+
+
+/* =========================
+   FRIEND REQUEST ACCEPTED
+========================= */
+
+socket.on(
+    "friend request accepted",
+    function(data) {
+
+        console.log(
+            "Friend request accepted:",
+            data
+        );
+
+        saveNotification(
+            "✅ " + data.message,
+            "/friends.html"
+        );
+
+        alert(
+            "✅ " + data.message
+        );
+
+    }
+);
+
+
+/* =========================
+   NEW PRIVATE MESSAGE
+========================= */
+
+socket.on(
+    "new private message",
+    function(data) {
+
+        console.log(
+            "New private message:",
+            data
+        );
+
+        const sender =
+            data.from || data.sender;
+
+        if (!sender) {
+            return;
+        }
+
+        saveNotification(
+            "💬 " +
+            sender +
+            " sent you a new message!",
+            "/private-chat.html?username=" +
+            encodeURIComponent(sender)
+        );
+
+        alert(
+            "💬 New message from " +
+            sender
+        );
+
+    }
+);
+
+
+/* =========================
+   INITIAL LOAD
+========================= */
+
+updateFriendBadge();
+
+updateNotificationBadge();
+
+
+/* =========================
+   LOGOUT
+========================= */
+
+function logout() {
+
+    localStorage.removeItem("username");
+
+    localStorage.removeItem("aboutMe");
+
+    window.location.href = "/login.html";
+
+}
+
+</script>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/notifications.js"></script>
+</html>

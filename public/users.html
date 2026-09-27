@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>TeenConnect - Users</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f0ff;
+        }
+
+        header {
+            background: linear-gradient(
+                135deg,
+                #6c4ab6,
+                #8b68d1
+            );
+
+            color: white;
+
+            padding: 25px;
+
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        nav {
+            background: white;
+
+            padding: 13px;
+
+            text-align: center;
+
+            box-shadow:
+                0 2px 6px
+                rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            text-decoration: none;
+
+            color: #5b3aa4;
+
+            margin: 0 9px;
+
+            font-weight: bold;
+        }
+
+        .badge {
+            background: red;
+
+            color: white;
+
+            border-radius: 50%;
+
+            padding: 3px 7px;
+
+            font-size: 12px;
+
+            font-weight: bold;
+
+            margin-left: 3px;
+        }
+
+        .container {
+            max-width: 1000px;
+
+            margin: 35px auto;
+
+            padding: 0 20px;
+        }
+
+        .search-box {
+            background: white;
+
+            padding: 20px;
+
+            border-radius: 15px;
+
+            box-shadow:
+                0 4px 15px
+                rgba(0,0,0,0.1);
+
+            margin-bottom: 25px;
+        }
+
+        .search-box h2 {
+            margin-top: 0;
+
+            color: #4d348c;
+        }
+
+        #searchInput {
+            width: 100%;
+
+            padding: 13px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 8px;
+
+            font-size: 16px;
+        }
+
+        #searchInput:focus {
+            outline: none;
+
+            border-color: #6c4ab6;
+
+            box-shadow:
+                0 0 5px
+                rgba(108,74,182,0.25);
+        }
+
+        .users-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(250px, 1fr)
+                );
+
+            gap: 20px;
+        }
+
+        .user-card {
+            background: white;
+
+            border-radius: 16px;
+
+            padding: 20px;
+
+            text-align: center;
+
+            box-shadow:
+                0 4px 15px
+                rgba(0,0,0,0.1);
+
+            transition:
+                transform 0.2s,
+                box-shadow 0.2s;
+        }
+
+        .user-card:hover {
+            transform:
+                translateY(-4px);
+
+            box-shadow:
+                0 7px 20px
+                rgba(0,0,0,0.15);
+        }
+
+        .avatar {
+            width: 90px;
+
+            height: 90px;
+
+            border-radius: 50%;
+
+            object-fit: cover;
+
+            background: #ddd;
+
+            border: 4px solid #eee8ff;
+        }
+
+        .username {
+            font-size: 20px;
+
+            font-weight: bold;
+
+            color: #4d348c;
+
+            margin-top: 12px;
+
+            word-break: break-word;
+        }
+
+        .status {
+            margin-top: 7px;
+
+            font-size: 14px;
+
+            font-weight: bold;
+        }
+
+        .online {
+            color: #16843a;
+        }
+
+        .offline {
+            color: #777;
+        }
+
+        .view-button {
+            display: inline-block;
+
+            margin-top: 15px;
+
+            background: #6c4ab6;
+
+            color: white;
+
+            text-decoration: none;
+
+            padding: 9px 16px;
+
+            border-radius: 7px;
+
+            font-weight: bold;
+        }
+
+        .view-button:hover {
+            background: #563596;
+        }
+
+        .no-users {
+            background: white;
+
+            padding: 30px;
+
+            text-align: center;
+
+            border-radius: 15px;
+
+            color: #777;
+        }
+
+        #loading {
+            text-align: center;
+
+            color: #777;
+
+            padding: 30px;
+        }
+
+        @media (max-width: 600px) {
+
+            nav a {
+                display: inline-block;
+
+                margin: 6px;
+            }
+
+            .container {
+                padding: 0 12px;
+            }
+
+            .users-grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <h1>
+        👥 TeenConnect Users
+    </h1>
+
+</header>
+
+
+<nav>
+
+    <a href="/index.html">
+        🏠 Home
+    </a>
+
+    <a href="/users.html">
+        👥 Users
+    </a>
+
+    <a href="/friends.html">
+
+        👥 Friends
+
+        <span
+            id="friendBadge"
+            class="badge"
+            style="display:none;"
+        ></span>
+
+    </a>
+
+    <a href="/chat.html">
+        💬 Chat
+    </a>
+
+    <a href="/notifications.html">
+
+        🔔 Notifications
+
+        <span
+            id="notificationBadge"
+            class="badge"
+            style="display:none;"
+        ></span>
+
+    </a>
+
+    <a href="/profile.html">
+        👤 Profile
+    </a>
+
+    <a href="#" onclick="logout()">
+        🚪 Logout
+    </a>
+
+</nav>
+
+
+<div class="container">
+
+
+    <!-- SEARCH -->
+
+    <div class="search-box">
+
+        <h2>
+            🔎 Find Users
+        </h2>
+
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search for a username..."
+        >
+
+    </div>
+
+
+    <!-- USERS -->
+
+    <div
+        id="loading"
+    >
+        Loading users...
+    </div>
+
+
+    <div
+        class="users-grid"
+        id="usersGrid"
+    ></div>
+
+
+</div>
+
+
+<script>
+
+
+/* =========================================
+   CURRENT USER
+========================================= */
+
+const currentUser =
+    localStorage.getItem("username");
+
+
+/* =========================================
+   LOGIN CHECK
+========================================= */
+
+if (!currentUser) {
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+/* =========================================
+   SOCKET.IO
+========================================= */
+
+const socket = io();
+
+
+socket.emit(
+    "register user",
+    currentUser
+);
+
+
+/* =========================================
+   USERS
+========================================= */
+
+let allUsers = [];
+
+
+/* =========================================
+   DEFAULT AVATAR
+========================================= */
+
+const defaultAvatar =
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(`
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="90"
+            height="90"
+        >
+
+            <rect
+                width="100%"
+                height="100%"
+                fill="#ddd"
+            />
+
+            <text
+                x="50%"
+                y="55%"
+                text-anchor="middle"
+                font-size="45"
+            >
+                👤
+            </text>
+
+        </svg>
+    `);
+
+
+/* =========================================
+   LOAD USERS
+========================================= */
+
+async function loadUsers() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users"
+            );
+
+
+        allUsers =
+            await response.json();
+
+
+        document.getElementById(
+            "loading"
+        ).style.display =
+            "none";
+
+
+        await renderUsers(
+            allUsers
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Users error:",
+            error
+        );
+
+
+        document.getElementById(
+            "loading"
+        ).textContent =
+            "❌ Could not load users.";
+
+    }
+
+}
+
+
+/* =========================================
+   RENDER USERS
+========================================= */
+
+async function renderUsers(
+    users
+) {
+
+    const grid =
+        document.getElementById(
+            "usersGrid"
+        );
+
+
+    grid.innerHTML = "";
+
+
+    if (
+        !Array.isArray(users) ||
+        users.length === 0
+    ) {
+
+        grid.innerHTML = `
+            <div class="no-users">
+                No users found.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    for (const user of users) {
+
+        /* Don't show yourself */
+
+        if (
+            user.username ===
+            currentUser
+        ) {
+
+            continue;
+
+        }
+
+
+        const card =
+            document.createElement(
+                "div"
+            );
+
+
+        card.className =
+            "user-card";
+
+
+        /* PROFILE IMAGE */
+
+        const avatar =
+            document.createElement(
+                "img"
+            );
+
+
+        avatar.className =
+            "avatar";
+
+
+        avatar.alt =
+            user.username +
+            " profile picture";
+
+
+        avatar.src =
+            defaultAvatar;
+
+
+        /* LOAD DATABASE PROFILE */
+
+        try {
+
+            const profileResponse =
+                await fetch(
+                    "/api/profile/" +
+                    encodeURIComponent(
+                        user.username
+                    )
+                );
+
+
+            const profile =
+                await profileResponse.json();
+
+
+            if (
+                profile.success &&
+                profile.avatar
+            ) {
+
+                avatar.src =
+                    profile.avatar;
+
+            }
+
+        } catch (error) {
+
+            console.log(
+                "Could not load avatar for",
+                user.username
+            );
+
+        }
+
+
+        /* USERNAME */
+
+        const name =
+            document.createElement(
+                "div"
+            );
+
+
+        name.className =
+            "username";
+
+
+        name.textContent =
+            user.username;
+
+
+        /* STATUS */
+
+        const status =
+            document.createElement(
+                "div"
+            );
+
+
+        status.className =
+            "status offline";
+
+
+        status.id =
+            "status-" +
+            user.username;
+
+
+        status.textContent =
+            "⚪ Offline";
+
+
+        /* VIEW BUTTON */
+
+        const viewButton =
+            document.createElement(
+                "a"
+            );
+
+
+        viewButton.className =
+            "view-button";
+
+
+        viewButton.textContent =
+            "View Profile";
+
+
+        viewButton.href =
+            "/user-profile.html?username=" +
+            encodeURIComponent(
+                user.username
+            );
+
+
+        /* ADD */
+
+        card.appendChild(
+            avatar
+        );
+
+        card.appendChild(
+            name
+        );
+
+        card.appendChild(
+            status
+        );
+
+        card.appendChild(
+            viewButton
+        );
+
+
+        grid.appendChild(
+            card
+        );
+
+    }
+
+
+    /* Update status */
+
+    updateOnlineUsers();
+
+}
+
+
+/* =========================================
+   ONLINE USERS
+========================================= */
+
+let onlineUsers = [];
+
+
+socket.on(
+    "online users",
+    function(users) {
+
+        onlineUsers =
+            users || [];
+
+
+        updateOnlineUsers();
+
+    }
+);
+
+
+function updateOnlineUsers() {
+
+    for (
+        const user of allUsers
+    ) {
+
+        if (
+            user.username ===
+            currentUser
+        ) {
+
+            continue;
+
+        }
+
+
+        const status =
+            document.getElementById(
+                "status-" +
+                user.username
+            );
+
+
+        if (!status) {
+            continue;
+        }
+
+
+        if (
+            onlineUsers.includes(
+                user.username
+            )
+        ) {
+
+            status.textContent =
+                "🟢 Online";
+
+            status.className =
+                "status online";
+
+        } else {
+
+            status.textContent =
+                "⚪ Offline";
+
+            status.className =
+                "status offline";
+
+        }
+
+    }
+
+}
+
+
+/* =========================================
+   SEARCH
+========================================= */
+
+document.getElementById(
+    "searchInput"
+).addEventListener(
+    "input",
+    function() {
+
+        const search =
+            this.value
+                .toLowerCase()
+                .trim();
+
+
+        const filtered =
+            allUsers.filter(
+                user =>
+                    user.username
+                        .toLowerCase()
+                        .includes(search)
+            );
+
+
+        renderUsers(
+            filtered
+        );
+
+    }
+);
+
+
+/* =========================================
+   FRIEND BADGE
+========================================= */
+
+async function updateFriendBadge() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/friend-requests?username=" +
+                encodeURIComponent(
+                    currentUser
+                )
+            );
+
+
+        const requests =
+            await response.json();
+
+
+        const badge =
+            document.getElementById(
+                "friendBadge"
+            );
+
+
+        if (
+            Array.isArray(requests) &&
+            requests.length > 0
+        ) {
+
+            badge.textContent =
+                requests.length;
+
+            badge.style.display =
+                "inline-block";
+
+        } else {
+
+            badge.style.display =
+                "none";
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Friend badge error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   NOTIFICATIONS
+========================================= */
+
+function getNotifications() {
+
+    const key =
+        "notifications_" +
+        currentUser;
+
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(
+                key
+            )
+        ) || [];
+
+    } catch (error) {
+
+        return [];
+
+    }
+
+}
+
+
+function saveNotifications(
+    notifications
+) {
+
+    localStorage.setItem(
+
+        "notifications_" +
+        currentUser,
+
+        JSON.stringify(
+            notifications
+        )
+
+    );
+
+}
+
+
+function updateNotificationBadge() {
+
+    const notifications =
+        getNotifications();
+
+
+    const unread =
+        notifications.filter(
+            notification =>
+                notification.read !== true
+        ).length;
+
+
+    const badge =
+        document.getElementById(
+            "notificationBadge"
+        );
+
+
+    if (unread > 0) {
+
+        badge.textContent =
+            unread;
+
+        badge.style.display =
+            "inline-block";
+
+    } else {
+
+        badge.style.display =
+            "none";
+
+    }
+
+}
+
+
+function saveNotification(
+    message,
+    link
+) {
+
+    const notifications =
+        getNotifications();
+
+
+    notifications.unshift({
+
+        message:
+            message,
+
+        link:
+            link,
+
+        time:
+            new Date().toLocaleString(),
+
+        read:
+            false
+
+    });
+
+
+    saveNotifications(
+        notifications
+    );
+
+
+    updateNotificationBadge();
+
+}
+
+
+/* =========================================
+   FRIEND REQUEST EVENT
+========================================= */
+
+socket.on(
+    "friend request",
+    function(data) {
+
+        if (
+            data.receiver ===
+            currentUser
+        ) {
+
+            saveNotification(
+                "👥 " +
+                data.message,
+                "/friends.html"
+            );
+
+
+            updateFriendBadge();
+
+
+            alert(
+                "👥 New friend request from " +
+                data.sender
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   FRIEND ACCEPTED EVENT
+========================================= */
+
+socket.on(
+    "friend request accepted",
+    function(data) {
+
+        if (
+            data.receiver ===
+            currentUser
+        ) {
+
+            saveNotification(
+                "✅ " +
+                data.message,
+                "/friends.html"
+            );
+
+
+            updateFriendBadge();
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   PRIVATE MESSAGE EVENT
+========================================= */
+
+socket.on(
+    "new private message",
+    function(data) {
+
+        const sender =
+            data.from ||
+            data.sender;
+
+
+        if (!sender) {
+            return;
+        }
+
+
+        saveNotification(
+
+            "💬 " +
+            sender +
+            " sent you a new message!",
+
+            "/private-chat.html?username=" +
+            encodeURIComponent(
+                sender
+            )
+
+        );
+
+    }
+);
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+function logout() {
+
+    localStorage.removeItem(
+        "username"
+    );
+
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+/* =========================================
+   START
+========================================= */
+
+loadUsers();
+
+updateFriendBadge();
+
+updateNotificationBadge();
+
+</script>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/notifications.js"></script>
+
+</html>
